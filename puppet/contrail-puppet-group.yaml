@@ -1,0 +1,72 @@
+heat_template_version: 2015-04-30
+
+description: >
+  Contrail group
+
+parameters:
+  ContrailControllerCount:
+    type: number
+    default: 2
+
+  ContrailConfigCount:
+    type: number
+    default: 2
+
+  ContrailWebUICount:
+    type: number
+    default: 2
+
+  ContrailControllerHostname:
+    type: string
+    description: Format for Controller node hostnames
+    default: 'contrail-controller-%index%'
+
+  ContrailConfigHostname:
+    type: string
+    description: Format for Controller node hostnames
+    default: 'contrail-config-%index%'
+
+  ContrailWebUIHostname:
+    type: string
+    description: Format for Controller node hostnames
+    default: 'contrail-webui-%index%'
+
+resources:
+  ContrailControllerNodes:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: ContrailControllerCount}
+      resource_def:
+        type: Contrail::Controller
+        properties:
+          ContrailControllerHostname:
+            str_replace:
+              template: {get_param: ContrailControllerHostname}
+              params:
+                '%stackname%': {get_param: 'OS::stack_name'}
+
+  ContrailConfigNodes:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: ContrailConfigCount}
+      resource_def:
+        type: Contrail::Config
+        properties:
+          ContrailConfigHostname:
+            str_replace:
+              template: {get_param: ContrailConfigHostname}
+              params:
+                '%stackname%': {get_param: 'OS::stack_name'}
+
+  ContrailWebUINodes:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: ContrailWebUICount}
+      resource_def:
+        type: Contrail::WebUI
+        properties:
+          ContrailWebUIHostname:
+            str_replace:
+              template: {get_param: ContrailWebUIHostname}
+              params:
+                '%stackname%': {get_param: 'OS::stack_name'}
