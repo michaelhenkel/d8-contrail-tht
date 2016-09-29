@@ -29,8 +29,8 @@ parameter_defaults:
   TenantAllocationPools: [{'start': '10.10.5.5', 'end': '10.10.5.254'}]
   TenantNetCidr: '10.10.5.0/24'
 
-  EC2MetadataIp: '10.10.10.2'
-  ControlPlaneDefaultRoute: '10.10.10.2'
+  EC2MetadataIp: '192.0.2.1'
+  ControlPlaneDefaultRoute: '192.0.2.1'
   ControlPlaneSubnetCidr: '24'
   DnsServers: ["8.8.8.8","8.8.4.4"]
 
