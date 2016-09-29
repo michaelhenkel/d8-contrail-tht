@@ -1,0 +1,63 @@
+resource_registry:
+  OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/cinder-storage.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/controller.yaml
+  OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/swift-storage.yaml
+  OS::TripleO::CephStorage::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/ceph-storage.yaml
+  # You have to add this file to configure the network on contrail nodes
+  OS::TripleO::Contrail::Net::SoftwareConfig: /home/stack/templates/network/config/single-nic-vlans/contrail.yaml
+
+parameter_defaults:
+  OvercloudControlFlavor: baremetal
+  ControllerHostnameFormat: 'controller-%index%'
+  ComputeHostnameFormat: 'compute-%index%'
+  CephStorageHostnameFormat: 'ceph-%index%'
+
+  ExternalAllocationPools: [{'start': '10.10.1.5', 'end': '10.10.1.254'}]
+  ExternalInterfaceDefaultRoute: '10.10.1.1'
+  ExternalNetCidr: '10.10.1.0/24'
+
+  InternalApiAllocationPools: [{'start': '10.10.2.5', 'end': '10.10.2.254'}]
+  InternalApiNetCidr: '10.10.2.0/24'
+
+  StorageAllocationPools: [{'start': '10.10.3.5', 'end': '10.10.3.254'}]
+  StorageNetCidr: '10.10.3.0/24'
+
+  StorageMgmtAllocationPools: [{'start': '10.10.4.5', 'end': '10.10.4.254'}]
+  StorageMgmtNetCidr: '10.10.4.0/24'
+
+  TenantAllocationPools: [{'start': '10.10.5.5', 'end': '10.10.5.254'}]
+  TenantNetCidr: '10.10.5.0/24'
+
+  EC2MetadataIp: '192.0.2.1'
+  ControlPlaneDefaultRoute: '192.0.2.1'
+  ControlPlaneSubnetCidr: '24'
+  DnsServers: ["8.8.8.8","8.8.4.4"]
+
+  ExternalNetworkVlanID: 1001
+  InternalApiNetworkVlanID: 1002
+  StorageNetworkVlanID: 1003
+  StorageMgmtNetworkVlanID: 1004
+  TenantNetworkVlanID: 1005
+
+  NeutronExternalNetworkBridge: "''"
+
+  ControllerEnableSwiftStorage: false
+  Debug: false
+
+parameters:
+  controllerExtraConfig:
+    glance::api::show_image_direct_url: true
+
+  ##Customize the vrouter agent with these params
+  # examples, a pull request was summited to allow
+  # user to set kmod
+  # https://github.com/redhat-cip/puppet-contrail/pull/17/files
+  NovaComputeExtraConfig:
+    contrail::vrouter::config::device: vlan1002
+    # to configure /etc/contrail/contrail-vrouter-agent.conf
+    contrail::vrouter::config::vrouter_agent_config:
+          VIRTUAL-HOST-INTERFACE/physical_interface:
+              value: vlan1002
+          #SECTION/key:
+          #  value: $val

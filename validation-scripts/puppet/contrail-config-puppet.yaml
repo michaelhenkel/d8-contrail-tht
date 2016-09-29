@@ -1,0 +1,225 @@
+heat_template_version: 2015-04-30
+
+description: >
+  Contrail Config node
+
+parameters:
+  ContrailFlavorConfig:
+    default: baremetal
+    description: The flavor to use for the Contrail node
+    type: string
+  ContrailImage:
+    default: contrail
+    description: The image to use for the Contrail node
+    type: string
+  ContrailConfigHostname:
+    default: contrail-config
+    description: The hostname to use for the Contrail node
+    type: string
+  ContrailUsername:
+    default: admin
+    description: The admin user for the Contrail node
+    type: string
+  ContrailPassword:
+    default: ''
+    description: The admin password for the Contrail node
+    type: string
+    hidden: true
+  KeyName:
+    description: The keypair to use for SSH access to the node (via heat-admin user)
+    type: string
+    default: default
+    constraints:
+      - custom_constraint: nova.keypair
+  ImageUpdatePolicy:
+    default: 'REBUILD_PRESERVE_EPHEMERAL'
+    description: What policy to use when reconstructing instances. REBUILD for rebuilds, REBUILD_PRESERVE_EPHEMERAL to preserve /mnt.
+    type: string
+  UpdateIdentifier:
+    default: ''
+    type: string
+    description: >
+      Setting to a previously unused value during stack-update will trigger
+      package update on all nodes
+  NtpServer:
+    type: string
+    default: ''
+
+resources:
+
+  ContrailNode:
+    type: OS::Nova::Server
+    properties:
+      name: {get_param: ContrailConfigHostname}
+      image: {get_param: ContrailImage}
+      image_update_policy: {get_param: ImageUpdatePolicy}
+      flavor: {get_param: ContrailFlavorConfig}
+      key_name: {get_param: KeyName}
+      networks:
+        - network: ctlplane
+      user_data_format: SOFTWARE_CONFIG
+      user_data: {get_resource: NodeUserData}
+
+  NodeUserData:
+    type: OS::TripleO::NodeUserData
+
+  InternalApiPort:
+    type: OS::TripleO::Contrail::Ports::InternalApiPort
+    properties:
+      ControlPlaneIP: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+
+  NetIpMap:
+    type: OS::TripleO::Network::Ports::NetIpMap
+    properties:
+      ControlPlaneIp: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+      InternalApiIp: {get_attr: [InternalApiPort, ip_address]}
+
+  NetworkConfig:
+    type: OS::TripleO::Contrail::Net::SoftwareConfig
+    properties:
+      ControlPlaneIp: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+      InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
+
+  NetworkDeployment:
+    type: OS::TripleO::SoftwareDeployment
+    properties:
+      config: {get_resource: NetworkConfig}
+      server: {get_resource: ContrailNode}
+      input_values:
+
+  #ContrailDeployment:
+  #  type: OS::TripleO::SoftwareDeployment
+  #  depends_on: NetworkDeployment
+  #  properties:
+  #    config: {get_resource: ContrailConfig}
+  #    server: {get_resource: ContrailNode}
+  #    input_values:
+  #      neutron_local_ip: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+  #      ntp_servers:
+  #        str_replace:
+  #          template: '["server"]'
+  #          params:
+  #            server: {get_param: NtpServer}
+
+  ContrailConfig:
+    type: OS::Heat::StructuredConfig
+    properties:
+      group: os-apply-config
+      config:
+        hiera:
+          hierarchy:
+            - '"%{::uuid}"'
+            - heat_config_%{::deploy_config_name}
+            - extraconfig
+            - bootstrap_node # provided by BootstrapNodeConfig
+            - all_nodes # provided by allNodesConfig
+            - RedHat # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1236143
+            - common
+          datafiles:
+            common:
+              raw_data: {get_file: hieradata/common.yaml}
+              mapped_data:
+                ntp::servers: {get_input: ntp_servers}
+                contrail::admin_username: {get_param: ContrailUsername}
+                contrail::admin_password: {get_param: ContrailPassword}
+
+  UpdateConfig:
+    type: OS::TripleO::Tasks::PackageUpdate
+
+  #UpdateDeployment:
+  #  type: OS::Heat::SoftwareDeployment
+  #  properties:
+  #    config: {get_resource: UpdateConfig}
+  #    server: {get_resource: ContrailNode}
+  #    input_values:
+  #      update_identifier:
+  #        get_param: UpdateIdentifier
+
+  ContrailHostsConfig:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: |
+        #!/usr/bin/env bash
+        echo -e "$(facter ipaddress)\t\t$(hostname -f)\t$(hostname -s)" >> /etc/hosts
+
+  #ContrailHostsDeployment:
+  #  type: OS::Heat::StructuredDeployment
+  #  properties:
+  #    server: {get_resource: ContrailNode}
+  #    config: {get_resource: ContrailHostsConfig}
+
+      #  ContrailPuppetConfig:
+      #    type: OS::Heat::SoftwareConfig
+      #    properties:
+      #      group: puppet
+      #      config:
+      #        get_file: manifests/overcloud_contrail.pp
+
+      #  ContrailPuppetDeployment:
+      #    depends_on: ContrailHostsDeployment
+      #    type: OS::Heat::StructuredDeployment
+      #    properties:
+      #      server: {get_resource: ContrailNode}
+      #      config: {get_resource: ContrailPuppetConfig}
+      #      input_values:
+      #        update_identifier: {get_param: UpdateIdentifier}
+
+      #  NodeContrailConfig:
+      #    type: OS::Heat::SoftwareConfig
+      #    properties:
+      #      group: script
+      #      inputs:
+      #      - name: salt_master
+      #      config: |
+      #        #!/usr/bin/env bash
+      #        sed -i s/master:/d/g /etc/salt/minion
+      #        echo 'master:' $salt_master >> /etc/salt/minion
+      #        mv /etc/diamond/diamond.conf.example /etc/diamond/diamond.conf
+      #        systemctl enable diamond
+      #        systemctl start diamond
+      #        systemctl enable salt-minion
+      #        systemctl start salt-minion
+
+      #  ControllerContrailDeployment:
+      #    depends_on: ContrailPuppetDeployment
+      #    type: OS::Heat::StructuredDeployments
+      #    properties:
+      #      servers: {get_param: controller_servers}
+      #      config: {get_resource: NodeContrailConfig}
+      #      input_values:
+      #        salt_master: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+      #        update_identifier: {get_param: UpdateIdentifier}
+      #
+      #  CephServerContrailDeployment:
+      #    depends_on: ContrailPuppetDeployment
+      #    type: OS::Heat::StructuredDeployments
+      #    properties:
+      #      servers: {get_param: cephstorage_servers}
+      #      config: {get_resource: NodeContrailConfig}
+      #      input_values:
+      #        salt_master: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+      #        update_identifier: {get_param: UpdateIdentifier}
+
+outputs:
+  ip_address:
+    description: IP address of the server in the ctlplane network
+    value: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+  internal_ip_address:
+    description: IP address of the server on the internal network
+    value: {get_attr: [InternalApiPort, ip_address]}
+  hostname:
+    description: Hostname of the server
+    value: {get_attr: [ContrailNode, name]}
+  config_identifier:
+    description: identifier which changes if the node configuration may need re-applying
+    value:
+        #str_replace:
+        #sttemplate: "IP HOST"
+        #stparams:
+        #st  IP: {get_attr: [ContrailNode, networks, ctlplane, 0]}
+        #st  HOST: {get_attr: [ContrailNode, name]}
+      list_join:
+      - ','
+      #- - {get_attr: [ContrailDeployment, deploy_stdout]}
+      - {get_param: UpdateIdentifier}
