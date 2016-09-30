@@ -9,6 +9,7 @@ parameter_defaults:
   ContrailFlavorConfig: baremetal
   ContrailFlavorController: baremetal
   ContrailImage: overcloud-full-contrail
+  NovaImage: overcloud-full-compute
   ContrailUsername: root
   ContrailPassword: superpass
   ContrailControllerCount: 1

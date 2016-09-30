@@ -5,8 +5,8 @@ resource_registry:
   OS::TripleO::ComputeExtraConfigPre: ../puppet/extraconfig/pre_deploy/compute/neutron-opencontrail.yaml
 
 parameter_defaults:
-  NeutronCorePlugin: neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
-  NeutronServicePlugins: neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
+  #NeutronCorePlugin: neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2
+  #NeutronServicePlugins: neutron_plugin_contrail.plugins.opencontrail.loadbalancer.plugin.LoadBalancerPlugin
   NeutronEnableDHCPAgent: false
   NeutronEnableL3Agent: false
   NeutronEnableMetadataAgent: false
@@ -15,7 +15,7 @@ parameter_defaults:
 
   # required params:
   ContrailApiServerIp: 10.10.2.21
-  ContrailExtensions: ["ipam:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_ipam.NeutronPluginContrailIpam","policy:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_policy.NeutronPluginContrailPolicy","route-table:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_vpc.NeutronPluginContrailVpc","contrail:None"]
+  #ContrailExtensions: ["ipam:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_ipam.NeutronPluginContrailIpam","policy:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_policy.NeutronPluginContrailPolicy","route-table:neutron_plugin_contrail.plugins.opencontrail.contrail_plugin_vpc.NeutronPluginContrailVpc","contrail:None"]
 
   # optional params
   # ContrailApiServerPort: 8082
